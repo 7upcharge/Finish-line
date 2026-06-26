@@ -55,6 +55,8 @@ export default function AddProject() {
     return () => clearInterval(interval);
   }, [loading]);
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !description) return;
@@ -62,6 +64,7 @@ export default function AddProject() {
     try {
       setLoading(true);
       setLoadingStep(0);
+      setErrorMsg(null);
       
       const result = await apiRequest("/api/projects", {
         method: "POST",
@@ -80,8 +83,9 @@ export default function AddProject() {
           router.push(`/projects/${result.projectId}`);
         }, 1000);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create project:", err);
+      setErrorMsg(err?.message || "Something went wrong. Please try again.");
       setLoading(false);
     }
   };
@@ -133,6 +137,11 @@ export default function AddProject() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {errorMsg && (
+              <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-xs text-red-400 font-semibold">
+                ⚠️ {errorMsg}
+              </div>
+            )}
             {/* Title */}
             <div>
               <label htmlFor="title" className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 block mb-2">

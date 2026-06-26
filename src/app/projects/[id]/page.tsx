@@ -214,17 +214,22 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
   };
 
   // Mark project status completed/abandoned
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const handleUpdateProjectStatus = async (status: "completed" | "abandoned") => {
     if (!confirm(`Are you sure you want to mark this project as ${status}?`)) return;
 
     try {
+      setUpdatingStatus(true);
       await apiRequest(`/api/projects/${projectId}`, {
         method: "PATCH",
         body: JSON.stringify({ status })
       });
-      loadProjectDetails();
-    } catch (err) {
+      await loadProjectDetails();
+    } catch (err: any) {
       console.error("Status update failed:", err);
+      alert(`Failed to update project status: ${err?.message || "Unknown error"}`);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -257,15 +262,17 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
           <div className="flex gap-2">
             <button
               onClick={() => handleUpdateProjectStatus("completed")}
-              className="rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition-all"
+              disabled={updatingStatus}
+              className="rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Mark Completed
+              {updatingStatus ? "Updating..." : "Mark Completed"}
             </button>
             <button
               onClick={() => handleUpdateProjectStatus("abandoned")}
-              className="rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-3 py-1.5 text-xs font-semibold text-red-400 transition-all"
+              disabled={updatingStatus}
+              className="rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-3 py-1.5 text-xs font-semibold text-red-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Abandon Project
+              {updatingStatus ? "Updating..." : "Abandon Project"}
             </button>
           </div>
         )}
