@@ -35,10 +35,29 @@ if (isServerConfigured) {
 }
 
 // Local File Database config (survives dev server restarts)
-const DB_FILE = path.join(process.cwd(), "mock-db.json");
+// In Vercel serverless functions, the workspace directory (process.cwd()) is read-only.
+// We must write to the writeable OS temp directory (/tmp) instead.
+const isVercel = !!process.env.VERCEL;
+const SOURCE_DB_FILE = path.join(process.cwd(), "mock-db.json");
+const DB_FILE = isVercel 
+  ? path.join("/tmp", "mock-db.json") 
+  : SOURCE_DB_FILE;
 
 function readDb() {
   try {
+    // On Vercel, if the temp file does not exist yet, copy the template from source
+    if (isVercel && !fs.existsSync(DB_FILE)) {
+      if (fs.existsSync(SOURCE_DB_FILE)) {
+        try {
+          const content = fs.readFileSync(SOURCE_DB_FILE, "utf-8");
+          fs.writeFileSync(DB_FILE, content, "utf-8");
+          console.log(`Successfully initialized mock-db in /tmp from ${SOURCE_DB_FILE}`);
+        } catch (copyErr) {
+          console.error("Failed to copy template mock-db to /tmp:", copyErr);
+        }
+      }
+    }
+
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, "utf-8");
       return JSON.parse(data);
