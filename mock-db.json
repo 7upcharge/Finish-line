@@ -20,6 +20,46 @@
       "category": "Coding",
       "watchdogStatus": "ok",
       "id": "4213ee"
+    },
+    "47kco8": {
+      "title": "build a app",
+      "description": "describe a app",
+      "deadline": {
+        "_seconds": 1782777600,
+        "_nanoseconds": 0
+      },
+      "status": "active",
+      "createdAt": {},
+      "updatedAt": {},
+      "lastCheckIn": {},
+      "progress": 0,
+      "ownerId": "116781618673025878597",
+      "priority": "high",
+      "category": "Coding",
+      "watchdogStatus": "ok",
+      "abandonmentRisk": "Losing momentum after the initial coding setup excitement fades.",
+      "warning": "Initial excitement covers up the lack of discipline. Keep showing up daily!",
+      "id": "47kco8"
+    },
+    "43m7g8": {
+      "title": "Test Anti-Abandonment App",
+      "description": "A productivity application designed to help users finish their coding projects.",
+      "deadline": {
+        "_seconds": 1853625600,
+        "_nanoseconds": 0
+      },
+      "status": "active",
+      "createdAt": {},
+      "updatedAt": {},
+      "lastCheckIn": {},
+      "progress": 0,
+      "ownerId": "116781618673025878597",
+      "priority": "medium",
+      "category": "Coding",
+      "watchdogStatus": "ok",
+      "abandonmentRisk": "Losing momentum after the initial coding setup excitement fades.",
+      "warning": "Initial excitement covers up the lack of discipline. Keep showing up daily!",
+      "id": "43m7g8"
     }
   },
   "milestones": {
@@ -51,6 +91,58 @@
         "status": "pending",
         "completedAt": null,
         "id": "2mml4g"
+      }
+    ],
+    "47kco8": [
+      {
+        "title": "Define Core Features & Architecture",
+        "order": 1,
+        "days": 2,
+        "status": "pending",
+        "completedAt": null,
+        "id": "b93u5a"
+      },
+      {
+        "title": "Build Minimum Viable Product (MVP)",
+        "order": 2,
+        "days": 5,
+        "status": "pending",
+        "completedAt": null,
+        "id": "xksffh"
+      },
+      {
+        "title": "Test, Debug & Deploy Project",
+        "order": 3,
+        "days": 3,
+        "status": "pending",
+        "completedAt": null,
+        "id": "e07o56"
+      }
+    ],
+    "43m7g8": [
+      {
+        "title": "Define Core Features & Architecture",
+        "order": 1,
+        "days": 2,
+        "status": "pending",
+        "completedAt": null,
+        "id": "03gjl"
+      },
+      {
+        "title": "Build Minimum Viable Product (MVP)",
+        "order": 2,
+        "days": 5,
+        "status": "pending",
+        "completedAt": null,
+        "id": "675kph"
+      },
+      {
+        "title": "Test, Debug & Deploy Project",
+        "order": 3,
+        "days": 3,
+        "status": "pending",
+        "completedAt": null,
+        "id": "kntz2"
       }
     ]
   },
@@ -110,6 +202,30 @@
           "model": "gemini-2.5-flash"
         },
         "id": "a9vgsc"
+      }
+    ],
+    "47kco8": [
+      {
+        "timestamp": {},
+        "agentName": "Intake",
+        "userInput": null,
+        "aiResponse": "Boss, key issue ki wajah se AI setup incomplete hai, but template milestones generate kar diye hain. Let's finish this!",
+        "metadata": {
+          "model": "gemini-2.5-flash"
+        },
+        "id": "mghrpa"
+      }
+    ],
+    "43m7g8": [
+      {
+        "timestamp": {},
+        "agentName": "Intake",
+        "userInput": null,
+        "aiResponse": "Boss, key issue ki wajah se AI setup incomplete hai, but template milestones generate kar diye hain. Let's finish this!",
+        "metadata": {
+          "model": "gemini-2.5-flash"
+        },
+        "id": "rl0p9e"
       }
     ]
   },
