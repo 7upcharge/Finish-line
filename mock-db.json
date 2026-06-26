@@ -1,0 +1,146 @@
+{
+  "projects": {
+    "4213ee": {
+      "title": "capstone project",
+      "description": "I want to win in this projecy",
+      "deadline": {
+        "_seconds": 1782518400,
+        "_nanoseconds": 0
+      },
+      "status": "active",
+      "createdAt": {},
+      "updatedAt": {},
+      "lastCheckIn": {
+        "_seconds": 1781827200,
+        "_nanoseconds": 0
+      },
+      "progress": 50,
+      "ownerId": "116781618673025878597",
+      "priority": "high",
+      "category": "Coding",
+      "watchdogStatus": "ok",
+      "id": "4213ee"
+    }
+  },
+  "milestones": {
+    "4213ee": [
+      {
+        "title": "Project Scope & Plan Finalize Karo",
+        "order": 1,
+        "status": "completed",
+        "completedAt": {},
+        "id": "c8zv1i"
+      },
+      {
+        "title": "Core Development/Research Shuru Karo",
+        "order": 2,
+        "status": "completed",
+        "completedAt": {},
+        "id": "mstkt"
+      },
+      {
+        "title": "Testing Aur Refinement Pe Dhyan Do",
+        "order": 3,
+        "status": "pending",
+        "completedAt": null,
+        "id": "xqq4eq"
+      },
+      {
+        "title": "Final Submission Ki Taiyari",
+        "order": 4,
+        "status": "pending",
+        "completedAt": null,
+        "id": "2mml4g"
+      }
+    ]
+  },
+  "checkins": {
+    "4213ee": [
+      {
+        "timestamp": {},
+        "note": "Completed milestone: \"Project Scope & Plan Finalize Karo\"",
+        "type": "progress",
+        "id": "cndm4t"
+      },
+      {
+        "timestamp": {},
+        "note": "Completed milestone: \"Core Development/Research Shuru Karo\"",
+        "type": "progress",
+        "id": "l0mtm9"
+      },
+      {
+        "timestamp": {},
+        "note": "Completed milestone: \"Testing Aur Refinement Pe Dhyan Do\"",
+        "type": "progress",
+        "id": "dtgwsr"
+      },
+      {
+        "timestamp": {},
+        "note": "Completed milestone: \"Final Submission Ki Taiyari\"",
+        "type": "progress",
+        "id": "0sgg71"
+      },
+      {
+        "timestamp": {},
+        "note": "Stuck: \"help me\n\" | AI Micro-action suggestion: \"Open the official submission portal or draft an email for your capstone project submission.\"",
+        "type": "stuck",
+        "id": "l4z3h"
+      }
+    ]
+  },
+  "conversations": {
+    "4213ee": [
+      {
+        "timestamp": {},
+        "agentName": "Intake",
+        "userInput": null,
+        "aiResponse": "Boss, 'win in this project' bolna easy hai, par karna tough! Capstone project koi mazak nahi hai, yaar. Yeh tere skills ka asli test hai. Bahut log shuru karte hain, par finish line tak pahunchte nahi. Par tu woh nahi hai, right? Chal, excuses band kar aur sach bata, kya tu sach mein jeetna chahta hai? Agar haan, toh chalo, abhi se start karo! Yeh milestones dekh, yeh tere roadmap hain. Ek-ek karke conquer kar, aur dekhna kaise tu apna project rock karega. Chal, ab soch mat, kaam pe lag!",
+        "metadata": {
+          "model": "gemini-2.5-flash"
+        },
+        "id": "jjs7ne"
+      },
+      {
+        "timestamp": {},
+        "agentName": "Blocker",
+        "userInput": "help me\n",
+        "aiResponse": "Boss, saare milestones toh done hain, fir bhi 'help me' bol rahe ho? Sach bata, bas submission ka darr hai na? Perfectionism ki chakar mein late mat ho jaana, yaar. Itna mehnat kiya hai, ab bas finish line cross karni hai. Koi badi baat nahi, chalo, bas yeh chhota sa step lo, aur dekho kaise momentum wapas aata hai. Abhi ke abhi kar daalo!",
+        "metadata": {
+          "microAction": "Open the official submission portal or draft an email for your capstone project submission.",
+          "model": "gemini-2.5-flash"
+        },
+        "id": "a9vgsc"
+      }
+    ]
+  },
+  "users": {
+    "116781618673025878597": {
+      "email": "ronakchhabda0@gmail.com",
+      "displayName": "Ronak Chhabada",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocIGN0jTIc8pQZ3g9fc1afx-S-9N3uK9HCnXgf4677-oGE-rBHHK=s96-c",
+      "createdAt": {},
+      "currentStreak": 2,
+      "maxStreak": 2,
+      "totalCompleted": 1,
+      "totalAbandoned": 0,
+      "finishRate": 100,
+      "lastActivity": {},
+      "uid": "116781618673025878597"
+    }
+  },
+  "agentMessages": {
+    "oubrr": {
+      "projectId": "4213ee",
+      "userId": "116781618673025878597",
+      "agentName": "watchdog",
+      "message": "Boss, 7 din ho gaye silent rehkar. Aakhri milestone \"Core Development/Research Shuru Karo\" par hi atke hue ho. Kya aaj ek chota sa step shuru kar sakte ho?",
+      "createdAt": {},
+      "read": true,
+      "metadata": {
+        "daysSilent": 7,
+        "lastMilestone": "Core Development/Research Shuru Karo"
+      },
+      "id": "oubrr"
+    }
+  }
+}

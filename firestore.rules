@@ -1,0 +1,244 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // GLOBAL HELPERS
+    // ==========================================
+    
+    // Checks if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Checks if the authenticated user matches the specified user ID
+    function isUser(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Checks if a project document exists in the database
+    function projectExists(projectId) {
+      return exists(/databases/$(database)/documents/projects/$(projectId));
+    }
+
+    // Fetches the ownerId of a project document
+    function getProjectOwner(projectId) {
+      return get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId;
+    }
+
+    // Checks if the authenticated user is the owner of a project
+    function isProjectOwner(projectId) {
+      return isAuthenticated() 
+        && projectExists(projectId) 
+        && getProjectOwner(projectId) == request.auth.uid;
+    }
+
+    // ==========================================
+    // DEFAULT DENY FALLBACK
+    // ==========================================
+    // Deny all reads and writes by default unless explicitly allowed below.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==========================================
+    // 1. USERS COLLECTION & NESTED SUBCOLLECTIONS
+    // ==========================================
+    
+    match /users/{userId} {
+      // Only authenticated user can read/write their own document
+      allow read: if isUser(userId);
+      
+      // Validate all required fields on write & prevent data tampering via field validation
+      allow write: if isUser(userId)
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.currentStreak is int
+        && request.resource.data.currentStreak >= 0
+        && request.resource.data.maxStreak is int
+        && request.resource.data.maxStreak >= 0
+        && (request.resource.data.uid == userId || !('uid' in request.resource.data))
+        && (resource == null ? 
+            ('createdAt' in request.resource.data ? request.resource.data.createdAt == request.time : true) :
+            ('createdAt' in request.resource.data ? request.resource.data.createdAt == resource.data.createdAt : true)
+           );
+
+      // 7. ANALYTICS COLLECTION (Nested under users)
+      // Read: only the user themselves. Write: server only (no client-side writes allowed).
+      match /analytics/{documentId} {
+        allow read: if isUser(userId);
+        allow write: if false;
+      }
+
+      // 8. STREAKS COLLECTION (Nested under users)
+      // Read/write: only the user themselves.
+      match /streaks/{streakId} {
+        allow read: if isUser(userId);
+        allow write: if isUser(userId)
+          && (
+            !('currentStreak' in request.resource.data) ||
+            (request.resource.data.currentStreak is int && request.resource.data.currentStreak >= 0)
+          )
+          && (
+            !('maxStreak' in request.resource.data) ||
+            (request.resource.data.maxStreak is int && request.resource.data.maxStreak >= 0)
+          );
+      }
+    }
+
+    // ==========================================
+    // 2. PROJECTS COLLECTION & NESTED SUBCOLLECTIONS
+    // ==========================================
+    
+    match /projects/{projectId} {
+      // Only owner can read/write/delete their projects
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      
+      // Only owner can create project, with schema validation
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.status in ['active', 'completed', 'abandoned']
+        && request.resource.data.priority in ['low', 'medium', 'high']
+        && request.resource.data.progress is int && request.resource.data.progress >= 0 && request.resource.data.progress <= 100
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && ('abandonmentRisk' in request.resource.data ? request.resource.data.abandonmentRisk is string : true)
+        && ('warning' in request.resource.data ? request.resource.data.warning is string : true);
+
+      // Only owner can update project, with schema validation and tampering checks
+      allow update: if isAuthenticated()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.status in ['active', 'completed', 'abandoned']
+        && request.resource.data.priority in ['low', 'medium', 'high']
+        && request.resource.data.progress is int && request.resource.data.progress >= 0 && request.resource.data.progress <= 100
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && ('abandonmentRisk' in request.resource.data ? request.resource.data.abandonmentRisk is string : true)
+        && ('warning' in request.resource.data ? request.resource.data.warning is string : true);
+
+      // Only owner can delete their projects
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+
+      // 3. MILESTONES COLLECTION (Nested under projects)
+      // Only owner of parent project can read/write. Validate projectId exists.
+      match /milestones/{milestoneId} {
+        allow read: if isProjectOwner(projectId);
+        allow write: if isProjectOwner(projectId)
+          && projectExists(projectId)
+          && request.resource.data.title is string && request.resource.data.title.size() > 0
+          && request.resource.data.order is int && request.resource.data.order >= 0
+          && request.resource.data.status in ['pending', 'completed']
+          && ('days' in request.resource.data ? request.resource.data.days is int && request.resource.data.days >= 0 : true)
+          && (
+            !('projectId' in request.resource.data) || 
+            (request.resource.data.projectId == projectId)
+          );
+      }
+
+      // 4. CHECKINS COLLECTION (Nested under projects)
+      // Only project owner can create/read checkins. createdAt/timestamp must be server timestamp.
+      match /checkins/{checkinId} {
+        allow read: if isProjectOwner(projectId);
+        allow create: if isProjectOwner(projectId)
+          && request.resource.data.note is string && request.resource.data.note.size() > 0
+          && request.resource.data.type in ['progress', 'stuck']
+          && (
+            ('createdAt' in request.resource.data && request.resource.data.createdAt == request.time) ||
+            ('timestamp' in request.resource.data && request.resource.data.timestamp == request.time)
+          );
+        allow update, delete: if false;
+      }
+
+      // 5. AGENTMESSAGES COLLECTION (Nested under projects)
+      // Read: only project owner. Write: only from server (Firebase Admin SDK).
+      match /agentMessages/{messageId} {
+        allow read: if isProjectOwner(projectId);
+        allow write: if false;
+      }
+
+      // 6. CONVERSATIONS COLLECTION (Nested under projects)
+      // Read: only project owner. Write: server only.
+      match /conversations/{conversationId} {
+        allow read: if isProjectOwner(projectId);
+        allow write: if false;
+      }
+    }
+
+    // ==========================================
+    // FLAT COMPATIBILITY RULES
+    // ==========================================
+    
+    // Flat Milestones match (if queried flat via client)
+    // Only owner of parent project can read/write. Validate projectId exists.
+    match /milestones/{milestoneId} {
+      allow read: if isAuthenticated() 
+        && ('projectId' in resource.data ? isProjectOwner(resource.data.projectId) : false);
+      allow write: if isAuthenticated() 
+        && ('projectId' in request.resource.data ? isProjectOwner(request.resource.data.projectId) : false)
+        && projectExists(request.resource.data.projectId)
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.order is int && request.resource.data.order >= 0
+        && request.resource.data.status in ['pending', 'completed']
+        && ('days' in request.resource.data ? request.resource.data.days is int && request.resource.data.days >= 0 : true);
+    }
+
+    // Flat Checkins match (if queried flat via client)
+    // Only project owner can create/read checkins. createdAt/timestamp must be server timestamp.
+    match /checkins/{checkinId} {
+      allow read: if isAuthenticated() 
+        && ('projectId' in resource.data ? isProjectOwner(resource.data.projectId) : false);
+      allow create: if isAuthenticated()
+        && ('projectId' in request.resource.data ? isProjectOwner(request.resource.data.projectId) : false)
+        && request.resource.data.note is string && request.resource.data.note.size() > 0
+        && request.resource.data.type in ['progress', 'stuck']
+        && (
+          ('createdAt' in request.resource.data && request.resource.data.createdAt == request.time) ||
+          ('timestamp' in request.resource.data && request.resource.data.timestamp == request.time)
+        );
+      allow update, delete: if false;
+    }
+
+    // Flat AgentMessages match (if queried flat via client)
+    // Read: only project owner or matching user. Write: only from server.
+    match /agentMessages/{messageId} {
+      allow read: if isAuthenticated() 
+        && (
+          resource.data.userId == request.auth.uid ||
+          ('projectId' in resource.data ? isProjectOwner(resource.data.projectId) : false)
+        );
+      allow write: if false;
+    }
+
+    // Flat Conversations match (if queried flat via client)
+    // Read: only project owner. Write: server only.
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && ('projectId' in resource.data ? isProjectOwner(resource.data.projectId) : false);
+      allow write: if false;
+    }
+
+    // Flat Analytics match (if queried flat via client)
+    // Read: only the user themselves. Write: server only.
+    match /analytics/{documentId} {
+      allow read: if isAuthenticated() && (request.auth.uid == documentId || (resource != null && resource.data.userId == request.auth.uid));
+      allow write: if false;
+    }
+
+    // Flat Streaks match (if queried flat via client)
+    // Read/write: only the user themselves.
+    match /streaks/{streakId} {
+      allow read: if isAuthenticated() && (request.auth.uid == streakId || (resource != null && resource.data.userId == request.auth.uid));
+      allow write: if isAuthenticated() && (request.auth.uid == streakId || (request.resource != null && request.resource.data.userId == request.auth.uid))
+        && (
+          !('currentStreak' in request.resource.data) ||
+          (request.resource.data.currentStreak is int && request.resource.data.currentStreak >= 0)
+        )
+        && (
+          !('maxStreak' in request.resource.data) ||
+          (request.resource.data.maxStreak is int && request.resource.data.maxStreak >= 0)
+        );
+    }
+  }
+}
