@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -14,9 +14,7 @@ import {
   CheckCircle2, 
   Clock, 
   TrendingUp, 
-  X, 
-  Send,
-  Bell
+  TrendingDown
 } from "lucide-react";
 
 interface Project {
@@ -56,16 +54,7 @@ export default function Dashboard() {
     finishRate: 0
   });
   const [loading, setLoading] = useState(true);
-  const [watchdogAlerts, setWatchdogAlerts] = useState<{ id: string; title: string; message: string }[]>([]);
-  const [unreadWatchdogCount, setUnreadWatchdogCount] = useState(0);
-  const [coachFeedback, setCoachFeedback] = useState("");
   const [scanningWatchdog, setScanningWatchdog] = useState(false);
-
-  // Check-in modal state
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [checkinNote, setCheckinNote] = useState("");
-  const [checkinType, setCheckinType] = useState<"progress" | "stuck">("progress");
-  const [submittingCheckin, setSubmittingCheckin] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,7 +62,7 @@ export default function Dashboard() {
     }
   }, [user, authLoading, router]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -83,15 +72,11 @@ export default function Dashboard() {
       const projData = await apiRequest("/api/projects");
       const activeProj = projData.projects || [];
       setProjects(activeProj);
-      setUnreadWatchdogCount(projData.unreadWatchdogCount || 0);
 
       // 2. Fetch stats & insights
       const insightsData = await apiRequest("/api/insights");
       if (insightsData?.streaks) {
         setStats(insightsData.streaks);
-      }
-      if (insightsData?.streakSummary) {
-        setCoachFeedback(insightsData.streakSummary);
       }
 
     } catch (e) {
@@ -99,7 +84,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const handleRunWatchdogScan = async () => {
     if (scanningWatchdog) return;
@@ -107,10 +92,9 @@ export default function Dashboard() {
       setScanningWatchdog(true);
       const watchdogData = await apiRequest("/api/watchdog", { method: "POST" });
       
-      // Re-fetch project list and unread alert count
+      // Re-fetch project list
       const refreshedProjData = await apiRequest("/api/projects");
       setProjects(refreshedProjData.projects || []);
-      setUnreadWatchdogCount(refreshedProjData.unreadWatchdogCount || 0);
       
       console.log(`Watchdog scan completed! Nudged ${watchdogData?.nudgedCount || 0} projects.`);
     } catch (e) {
@@ -122,59 +106,57 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      fetchData();
-    }
-  }, [user]);
-
-  // Extract recent watchdog alerts to display
-  useEffect(() => {
-    const alerts: { id: string; title: string; message: string }[] = [];
-    
-    // Find active projects that are flagged as warned
-    projects.forEach(p => {
-      if (p.watchdogStatus === "warned" && p.status === "active") {
-        alerts.push({
-          id: p.id,
-          title: p.title,
-          message: p.latestWatchdogMessage || "Aapka is project par progress ruk gaya hai! Double check detail page for Watchdog callout."
-        });
-      }
-    });
-    setWatchdogAlerts(alerts);
-  }, [projects]);
-
-  const handleOpenCheckin = (project: Project) => {
-    setSelectedProject(project);
-    setCheckinNote("");
-    setCheckinType("progress");
-  };
-
-  const handleCloseCheckin = () => {
-    setSelectedProject(null);
-  };
-
-  const handleSubmitCheckin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProject || !checkinNote.trim()) return;
-
-    try {
-      setSubmittingCheckin(true);
-      await apiRequest(`/api/projects/${selectedProject.id}/checkins`, {
-        method: "POST",
-        body: JSON.stringify({
-          note: checkinNote,
-          type: checkinType,
-        }),
+      Promise.resolve().then(() => {
+        fetchData();
       });
-
-      // Refresh page data
-      await fetchData();
-      handleCloseCheckin();
-    } catch (error) {
-      console.error("Checkin submit error:", error);
-    } finally {
-      setSubmittingCheckin(false);
     }
+  }, [user, fetchData]);
+
+  const activeProjects = projects.filter((p) => p.status === "active");
+
+  // Extract recent watchdog alerts to display during render (no useEffect, no extra state)
+  const watchdogAlerts = projects
+    .filter(p => p.watchdogStatus === "warned" && p.status === "active")
+    .map(p => ({
+      id: p.id,
+      title: p.title,
+      message: p.latestWatchdogMessage || "Aapka is project par progress ruk gaya hai! Double check detail page for Watchdog callout."
+    }));
+
+  const getContextualHeading = () => {
+    // 1. Check for silent projects (4+ days silent)
+    let mostSilentProject: { title: string; days: number } | null = null;
+    let maxDays = 0;
+    
+    for (const p of activeProjects) {
+      if (p.lastCheckIn) {
+        const checkinDate = new Date(p.lastCheckIn);
+        const diff = new Date().getTime() - checkinDate.getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (days >= 4 && days > maxDays) {
+          maxDays = days;
+          mostSilentProject = { title: p.title, days };
+        }
+      }
+    }
+
+    if (mostSilentProject) {
+      const title = (mostSilentProject as { title: string; days: number }).title;
+      const capitalizedTitle = title.charAt(0).toUpperCase() + title.slice(1);
+      return `${capitalizedTitle} is ${(mostSilentProject as { title: string; days: number }).days} days silent. Kya chal raha hai?`;
+    }
+
+    // 2. Check streak
+    if (stats.currentStreak > 0) {
+      return `${stats.currentStreak} day streak. Don't break it today.`;
+    }
+
+    // 3. All good
+    if (activeProjects.length > 0) {
+      return `${activeProjects.length} project${activeProjects.length > 1 ? "s" : ""} running. Pick one and move it forward.`;
+    }
+
+    return "No projects running. Pick a goal and get started!";
   };
 
   if (authLoading || loading) {
@@ -188,54 +170,31 @@ export default function Dashboard() {
     );
   }
 
-  const activeProjects = projects.filter((p) => p.status === "active");
-
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-              Welcome back, {user?.displayName?.split(" ")[0] || "Boss"}!
-            </h1>
-            {unreadWatchdogCount > 0 && (
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 animate-pulse shrink-0">
-                <Bell className="h-3 w-3 animate-bounce" />
-                <span>{unreadWatchdogCount} Alert{unreadWatchdogCount > 1 ? "s" : ""}</span>
-              </div>
-            )}
-          </div>
-          <p className="text-sm text-violet-400 font-semibold mt-1.5 whitespace-pre-line max-w-2xl bg-violet-950/20 border border-violet-800/10 rounded-xl p-3.5 shadow-inner">
-            {coachFeedback || "Chalo, let's finish what you started today. No excuses."}
-          </p>
+      {/* Minimal Top Bar - 3 Columns Centered Grid */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:items-center border-b border-white/5 pb-4 mb-2">
+        <div className="text-xs text-neutral-500 font-medium sm:text-left text-center">
+          Good morning, {user?.displayName?.split(" ")[0] || "Ronak"}
         </div>
-        <div className="flex flex-wrap gap-2.5">
-          <button
-            onClick={handleRunWatchdogScan}
-            disabled={scanningWatchdog}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-900 border border-white/10 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-neutral-800 hover:border-white/20 disabled:opacity-50"
-          >
-            {scanningWatchdog ? (
-              <>
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                <span>Scanning...</span>
-              </>
-            ) : (
-              <>
-                <AlertOctagon className="h-4 w-4 text-yellow-500 animate-pulse" />
-                <span>Run Watchdog Scan</span>
-              </>
-            )}
-          </button>
+        <div className="text-xs font-semibold text-neutral-400 sm:text-center text-center">
+          {activeProjects.length} active &middot; {stats.totalCompleted} finished &middot; {Math.round(stats.finishRate)}% finish rate
+        </div>
+        <div className="sm:text-right text-center">
           <Link
             href="/projects/new"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-violet-500"
+            className="inline-flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/15 px-3.5 py-1.5 text-xs font-semibold text-white transition-all border border-white/5"
           >
-            Add New Project
-            <ArrowRight className="h-4 w-4" />
+            Add Project
           </Link>
         </div>
+      </div>
+
+      {/* Dynamic Contextual Heading */}
+      <div className="pt-2">
+        <h1 className="text-2xl font-extrabold tracking-tight text-white md:text-3xl lg:text-4xl">
+          {getContextualHeading()}
+        </h1>
       </div>
 
       {/* Watchdog Callout Banner */}
@@ -250,7 +209,7 @@ export default function Dashboard() {
                 Watchdog Alert: Inactivity Detected!
               </h3>
               <p className="mt-1 text-sm text-neutral-300">
-                You haven't updated some active projects in over 48 hours. The Watchdog Agent is not happy.
+                You haven&apos;t updated some active projects in over 48 hours. The Watchdog Agent is not happy.
               </p>
               <div className="mt-3 space-y-2">
                 {watchdogAlerts.map((alert) => (
@@ -273,14 +232,14 @@ export default function Dashboard() {
       )}
 
       {/* Stats Row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Streak */}
-        <div className="rounded-xl glass-panel p-5 flex items-center justify-between">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-center">
+        {/* Streak: Orange Accent, Flame Icon, Slightly Larger */}
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 shadow-lg shadow-orange-500/5 p-6 flex items-center justify-between transition-all scale-105 hover:scale-108 duration-300">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            <p className="text-xs font-bold uppercase tracking-wider text-orange-400">
               Current Streak
             </p>
-            <h3 className="text-3xl font-extrabold text-white mt-1">
+            <h3 className="text-4xl font-black text-white mt-1">
               {stats.currentStreak} Days
             </h3>
             <p className="text-[11px] text-neutral-400 mt-1">
@@ -288,61 +247,79 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-3 text-orange-400">
-            <Flame className="h-6 w-6 fill-current" />
+            <Flame className="h-7 w-7 fill-current" />
           </div>
         </div>
 
-        {/* Finish Rate */}
-        <div className="rounded-xl glass-panel p-5 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-              Finish Rate
-            </p>
-            <h3 className="text-3xl font-extrabold text-white mt-1">
-              {stats.finishRate}%
-            </h3>
-            <p className="text-[11px] text-neutral-400 mt-1">
-              Completed vs Abandoned
-            </p>
-          </div>
-          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-emerald-400">
-            <TrendingUp className="h-6 w-6" />
-          </div>
-        </div>
+        {/* Finish Rate: Green if >= 50%, Red if < 50%, with Trend Arrow */}
+        {(() => {
+          const isHigh = stats.finishRate >= 50;
+          return (
+            <div className={`rounded-xl glass-panel p-5 flex items-center justify-between transition-all border ${
+              isHigh ? "border-emerald-500/20 bg-emerald-500/5" : "border-rose-500/20 bg-rose-500/5"
+            }`}>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  Finish Rate
+                </p>
+                <h3 className={`text-3xl font-extrabold mt-1 ${isHigh ? "text-emerald-400" : "text-rose-400"}`}>
+                  {stats.finishRate}%
+                </h3>
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Completed vs Abandoned
+                </p>
+              </div>
+              <div className={`rounded-xl p-3 ${
+                isHigh ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+              }`}>
+                {isHigh ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Active Projects */}
-        <div className="rounded-xl glass-panel p-5 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-              Active Projects
-            </p>
-            <h3 className="text-3xl font-extrabold text-white mt-1">
-              {activeProjects.length}
-            </h3>
-            <p className="text-[11px] text-neutral-400 mt-1">
-              In-progress projects
-            </p>
-          </div>
-          <div className="rounded-xl bg-violet-500/10 border border-violet-500/20 p-3 text-violet-400">
-            <Target className="h-6 w-6" />
-          </div>
-        </div>
+        {/* Active Projects: Yellow warning if > 3 projects running */}
+        {(() => {
+          const isWarning = activeProjects.length > 3;
+          return (
+            <div className={`rounded-xl glass-panel p-5 flex items-center justify-between transition-all border ${
+              isWarning ? "border-yellow-500/30 bg-yellow-500/5" : "border-white/5"
+            }`}>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  Active Projects
+                </p>
+                <h3 className={`text-3xl font-extrabold mt-1 ${isWarning ? "text-yellow-400" : "text-white"}`}>
+                  {activeProjects.length}
+                </h3>
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  {isWarning ? "Overload! Focus on finishing." : "In-progress projects"}
+                </p>
+              </div>
+              <div className={`rounded-xl p-3 ${
+                isWarning ? "bg-yellow-500/10 text-yellow-500" : "bg-violet-500/10 text-violet-400"
+              }`}>
+                {isWarning ? <AlertOctagon className="h-6 w-6 animate-pulse" /> : <Target className="h-6 w-6" />}
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Completed vs Abandoned */}
-        <div className="rounded-xl glass-panel p-5 flex items-center justify-between">
+        {/* Project History: Muted, Smallest, Archive Data */}
+        <div className="rounded-xl glass-panel p-4 flex items-center justify-between opacity-60 scale-95 origin-center transition-all border border-white/5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
               Project History
             </p>
-            <h3 className="text-2xl font-extrabold text-white mt-1.5">
-              {stats.totalCompleted} <span className="text-xs font-normal text-neutral-500">Done</span> / {stats.totalAbandoned} <span className="text-xs font-normal text-neutral-500">Drop</span>
+            <h3 className="text-xl font-bold text-neutral-300 mt-0.5">
+              {stats.totalCompleted} <span className="text-[10px] font-normal text-neutral-500">Done</span> / {stats.totalAbandoned} <span className="text-[10px] font-normal text-neutral-500">Drop</span>
             </h3>
-            <p className="text-[11px] text-neutral-400 mt-1">
-              Total archived projects
+            <p className="text-[10px] text-neutral-500 mt-0.5">
+              Archive data
             </p>
           </div>
-          <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3 text-blue-400">
-            <CheckCircle2 className="h-6 w-6" />
+          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-2 text-neutral-500">
+            <CheckCircle2 className="h-4 w-4" />
           </div>
         </div>
       </div>
@@ -358,6 +335,23 @@ export default function Dashboard() {
                 {activeProjects.length}
               </span>
             </h2>
+            <button
+              onClick={handleRunWatchdogScan}
+              disabled={scanningWatchdog}
+              className="text-xs text-neutral-500 hover:text-neutral-300 transition-all flex items-center gap-1.5 bg-neutral-900/40 border border-white/5 px-2.5 py-1.5 rounded-lg hover:bg-neutral-800 disabled:opacity-50 cursor-pointer"
+            >
+              {scanningWatchdog ? (
+                <>
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-neutral-500 border-t-transparent"></div>
+                  <span>Scanning...</span>
+                </>
+              ) : (
+                <>
+                  <AlertOctagon className="h-3.5 w-3.5 text-yellow-500" />
+                  <span>Scan Health</span>
+                </>
+              )}
+            </button>
           </div>
 
           {activeProjects.length === 0 ? (
@@ -379,19 +373,36 @@ export default function Dashboard() {
               {activeProjects.map((p) => {
                 // Calculate days since last check-in
                 let daysSinceCheckin = "No updates yet";
+                let days = 0;
+                let isSilent = false;
+                let healthBorderClass = "border-l-emerald-500";
+                
                 if (p.lastCheckIn) {
                   const checkinDate = new Date(p.lastCheckIn);
                   const diff = Math.abs(new Date().getTime() - checkinDate.getTime());
-                  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                  days = Math.floor(diff / (1000 * 60 * 60 * 24));
                   daysSinceCheckin = days === 0 ? "Updated today" : `${days} day${days > 1 ? "s" : ""} ago`;
+                  
+                  if (days === 0) {
+                    healthBorderClass = "border-l-emerald-500";
+                  } else if (days >= 2 && days <= 3) {
+                    healthBorderClass = "border-l-yellow-500";
+                  } else if (days >= 4) {
+                    healthBorderClass = "border-l-rose-500";
+                    isSilent = true;
+                  } else {
+                    healthBorderClass = "border-l-emerald-500"; // 1 day silent is still green
+                  }
+                } else {
+                  // Never updated is red health (4+ days silent)
+                  healthBorderClass = "border-l-rose-500";
+                  isSilent = true;
                 }
 
                 return (
                   <div
                     key={p.id}
-                    className={`rounded-xl glass-panel p-5 flex flex-col justify-between transition-all hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-600/5 ${
-                      p.watchdogStatus === "warned" ? "border-yellow-500/30 bg-yellow-500/5" : ""
-                    }`}
+                    className={`rounded-xl glass-panel p-5 border-l-4 ${healthBorderClass} flex flex-col justify-between transition-all hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-600/5`}
                   >
                     <div>
                       {/* Top row */}
@@ -429,7 +440,7 @@ export default function Dashboard() {
                           <div className="flex-1">
                             <span className="font-bold">Watchdog Alert:</span>{" "}
                             <span className="italic text-neutral-300">
-                              "{p.latestWatchdogMessage || "Aapka is project par progress ruk gaya hai!"}"
+                              &ldquo;{p.latestWatchdogMessage || "Aapka is project par progress ruk gaya hai!"}&rdquo;
                             </span>
                           </div>
                         </div>
@@ -437,7 +448,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="mt-4 space-y-3">
-                      {/* Progress bar */}
+                      {/* Progress bar with violet-to-emerald gradient */}
                       <div>
                         <div className="flex items-center justify-between text-xs font-semibold text-neutral-400 mb-1">
                           <span>Progress</span>
@@ -445,7 +456,7 @@ export default function Dashboard() {
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-neutral-900 overflow-hidden border border-white/5">
                           <div
-                            className="h-full rounded-full bg-violet-600 transition-all duration-500"
+                            className="h-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 transition-all duration-500"
                             style={{ width: `${p.progress}%` }}
                           />
                         </div>
@@ -457,17 +468,19 @@ export default function Dashboard() {
                           <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
                             Last Update
                           </span>
-                          <span className="text-xs font-bold text-neutral-300 flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-neutral-400 shrink-0" />
+                          <span className={`text-xs flex items-center gap-1 ${
+                            isSilent ? "text-red-500 font-extrabold" : "font-bold text-neutral-300"
+                          }`}>
+                            <Clock className={`h-3 w-3 shrink-0 ${isSilent ? "text-red-500" : "text-neutral-400"}`} />
                             {daysSinceCheckin}
                           </span>
                         </div>
-                        <button
-                          onClick={() => handleOpenCheckin(p)}
+                        <Link
+                          href={`/projects/${p.id}`}
                           className="rounded-lg bg-neutral-900 border border-white/5 px-2.5 py-1 text-xs font-semibold text-neutral-300 transition-all hover:bg-neutral-800 hover:text-white"
                         >
-                          Check-in
-                        </button>
+                          &rarr; Open
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -537,93 +550,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Check-in Modal */}
-      {selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="w-full max-w-[450px] rounded-xl glass-panel-glow p-6 relative">
-            <button
-              onClick={handleCloseCheckin}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 className="text-lg font-bold text-white">
-              Check-in: <span className="text-violet-400">{selectedProject.title}</span>
-            </h2>
-            <p className="text-xs text-neutral-400 mt-1">
-              Add details of what you worked on. Watchdog will register your progress.
-            </p>
-
-            <form onSubmit={handleSubmitCheckin} className="mt-4 space-y-4">
-              {/* Type Switcher */}
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                  Status Type
-                </label>
-                <div className="flex gap-2 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setCheckinType("progress")}
-                    className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition-all ${
-                      checkinType === "progress"
-                        ? "bg-violet-600/10 border-violet-500 text-violet-400"
-                        : "bg-neutral-900 border-white/5 text-neutral-400 hover:bg-neutral-800"
-                    }`}
-                  >
-                    Doing Great (Progress)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCheckinType("stuck")}
-                    className={`flex-1 rounded-lg border py-2 text-xs font-semibold transition-all ${
-                      checkinType === "stuck"
-                        ? "bg-red-500/10 border-red-500/40 text-red-400"
-                        : "bg-neutral-900 border-white/5 text-neutral-400 hover:bg-neutral-800"
-                    }`}
-                  >
-                    I'm Stuck
-                  </button>
-                </div>
-              </div>
-
-              {/* Note */}
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                  What's the update, Boss?
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={checkinNote}
-                  onChange={(e) => setCheckinNote(e.target.value)}
-                  placeholder={
-                    checkinType === "progress"
-                      ? "Completed core user login flow and verified DB..."
-                      : "Stuck on configuring Firestore rules for subcollections. Feeling overwhelmed."
-                  }
-                  className="w-full rounded-lg bg-neutral-950 border border-white/5 p-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-violet-500 mt-1 resize-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingCheckin}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 py-2.5 text-xs font-bold text-white transition-all hover:bg-violet-500 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {submittingCheckin ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                ) : (
-                  <>
-                    <Send className="h-3.5 w-3.5" />
-                    Submit Check-in
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

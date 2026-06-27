@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api-client";
-import { LayoutDashboard, PlusCircle, LineChart, Flame, LogOut, Target, Menu, X } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LineChart, LogOut, Target, Menu, X } from "lucide-react";
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
@@ -87,14 +87,9 @@ export default function Sidebar() {
 
         {/* Streak Counter */}
         {streak > 0 && (
-          <div className="mx-4 mt-4 flex items-center justify-between rounded-xl bg-orange-500/10 border border-orange-500/20 px-4 py-2.5 text-orange-400">
-            <span className="text-xs font-semibold uppercase tracking-wider">
-              Finish Streak
-            </span>
-            <div className="flex items-center gap-1 font-bold">
-              <Flame className="h-5 w-5 fill-current" />
-              <span>{streak} Days</span>
-            </div>
+          <div className="mx-6 mt-4 flex items-center gap-1.5 text-xs text-orange-400/90 font-medium">
+            <span>🔥</span>
+            <span>{streak} Days</span>
           </div>
         )}
 
@@ -108,10 +103,10 @@ export default function Sidebar() {
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 py-2.5 pl-3 pr-4 text-sm font-medium transition-all border-l-2 ${
                   isActive
-                    ? "bg-violet-600/10 border border-violet-500/20 text-violet-400"
-                    : "text-neutral-400 hover:bg-white/5 hover:text-white border border-transparent"
+                    ? "border-violet-500 text-violet-400 bg-violet-500/5"
+                    : "border-transparent text-neutral-400 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
