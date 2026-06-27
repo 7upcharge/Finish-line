@@ -177,3 +177,42 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   return POST(req);
 }
+
+export async function PUT(req: NextRequest) {
+  const user = await verifyAuth(req);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { messageId } = await req.json();
+    if (!messageId) {
+      return NextResponse.json({ error: "Message ID is required" }, { status: 400 });
+    }
+
+    const msgRef = db.collection("agentMessages").doc(messageId);
+    const doc = await msgRef.get();
+    if (!doc.exists) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    const data = doc.data() || {};
+    if (data.userId !== user.uid) {
+      return NextResponse.json({ error: "Unauthorized to dismiss this message" }, { status: 403 });
+    }
+
+    // Mark as read in Firestore
+    await msgRef.update({ read: true });
+
+    // Also reset the watchdogStatus of the project
+    if (data.projectId) {
+      const projectRef = db.collection("projects").doc(data.projectId);
+      await projectRef.update({ watchdogStatus: "ok" });
+    }
+
+    return NextResponse.json({ message: "Message marked as read" });
+  } catch (error) {
+    console.error("PUT /api/watchdog error:", error);
+    return NextResponse.json({ error: "Failed to mark message as read" }, { status: 500 });
+  }
+}

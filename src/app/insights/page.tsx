@@ -15,10 +15,8 @@ import {
   Cell 
 } from "recharts";
 import { 
-  LineChart as LucideLineChart, 
   Flame, 
   TrendingUp, 
-  AlertTriangle, 
   HelpCircle,
   Clock,
   Sparkles,
@@ -126,6 +124,23 @@ export default function InsightsPage() {
           Re-Analyze
         </button>
       </div>
+
+      {/* Pattern Banner */}
+      {!isLearning && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 animate-in fade-in duration-300">
+          <div className="flex items-start gap-4">
+            <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-red-500 shrink-0">
+              <Flame className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-red-400">Your Pattern: You abandon on Day 4-5</h3>
+              <p className="mt-1 text-sm text-neutral-400 leading-relaxed font-medium">
+                Pattern Agent analysis shows that you have a strong tendency to lose momentum and abandon projects around **Day 4 or Day 5** of development. Focus on breaking this loop!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Learning State Notice */}
       {isLearning && (

@@ -10,11 +10,11 @@ import {
   Target, 
   Calendar, 
   AlertOctagon, 
-  ArrowRight, 
   CheckCircle2, 
   Clock, 
   TrendingUp, 
-  TrendingDown
+  TrendingDown,
+  Cpu
 } from "lucide-react";
 
 interface Project {
@@ -31,6 +31,8 @@ interface Project {
   milestonesCount: number;
   completedMilestonesCount: number;
   latestWatchdogMessage?: string | null;
+  latestWatchdogMessageId?: string | null;
+  latestWatchdogMessageRead?: boolean;
 }
 
 interface StreakStats {
@@ -54,7 +56,13 @@ export default function Dashboard() {
     finishRate: 0
   });
   const [loading, setLoading] = useState(true);
-  const [scanningWatchdog, setScanningWatchdog] = useState(false);
+  const [coachFeedback, setCoachFeedback] = useState("");
+
+  // Blocker agent inline state
+  const [stuckProjectId, setStuckProjectId] = useState<string | null>(null);
+  const [stuckReason, setStuckReason] = useState("");
+  const [submittingStuck, setSubmittingStuck] = useState(false);
+  const [blockerResponses, setBlockerResponses] = useState<Record<string, { microAction: string; response: string }>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,6 +76,9 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
+      // Auto run watchdog scan when opening the app
+      await apiRequest("/api/watchdog", { method: "POST" });
+      
       // 1. Fetch projects
       const projData = await apiRequest("/api/projects");
       const activeProj = projData.projects || [];
@@ -78,6 +89,9 @@ export default function Dashboard() {
       if (insightsData?.streaks) {
         setStats(insightsData.streaks);
       }
+      if (insightsData?.streakSummary) {
+        setCoachFeedback(insightsData.streakSummary);
+      }
 
     } catch (e) {
       console.error("Error loading dashboard data:", e);
@@ -86,21 +100,52 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  const handleRunWatchdogScan = async () => {
-    if (scanningWatchdog) return;
+  const handleDismissWatchdog = async (messageId: string | null | undefined, projectId: string) => {
+    if (!messageId) return;
     try {
-      setScanningWatchdog(true);
-      const watchdogData = await apiRequest("/api/watchdog", { method: "POST" });
-      
-      // Re-fetch project list
-      const refreshedProjData = await apiRequest("/api/projects");
-      setProjects(refreshedProjData.projects || []);
-      
-      console.log(`Watchdog scan completed! Nudged ${watchdogData?.nudgedCount || 0} projects.`);
+      await apiRequest("/api/watchdog", {
+        method: "PUT",
+        body: JSON.stringify({ messageId })
+      });
+      // Update local state immediately
+      setProjects(prev => prev.map(p => {
+        if (p.id === projectId) {
+          return {
+            ...p,
+            watchdogStatus: "ok",
+            latestWatchdogMessageRead: true
+          };
+        }
+        return p;
+      }));
     } catch (e) {
-      console.error("Error triggering watchdog scan:", e);
+      console.error("Failed to dismiss watchdog message:", e);
+    }
+  };
+
+  const handleStuckSubmit = async (projectId: string) => {
+    if (!stuckReason.trim()) return;
+    try {
+      setSubmittingStuck(true);
+      const res = await apiRequest(`/api/projects/${projectId}/stuck`, {
+        method: "POST",
+        body: JSON.stringify({ reason: stuckReason })
+      });
+      if (res && res.microAction) {
+        setBlockerResponses(prev => ({
+          ...prev,
+          [projectId]: {
+            microAction: res.microAction,
+            response: res.response || "Here is a suggested next action."
+          }
+        }));
+      }
+      setStuckProjectId(null);
+      setStuckReason("");
+    } catch (e) {
+      console.error("Failed to submit stuck reason:", e);
     } finally {
-      setScanningWatchdog(false);
+      setSubmittingStuck(false);
     }
   };
 
@@ -113,15 +158,6 @@ export default function Dashboard() {
   }, [user, fetchData]);
 
   const activeProjects = projects.filter((p) => p.status === "active");
-
-  // Extract recent watchdog alerts to display during render (no useEffect, no extra state)
-  const watchdogAlerts = projects
-    .filter(p => p.watchdogStatus === "warned" && p.status === "active")
-    .map(p => ({
-      id: p.id,
-      title: p.title,
-      message: p.latestWatchdogMessage || "Aapka is project par progress ruk gaya hai! Double check detail page for Watchdog callout."
-    }));
 
   const getContextualHeading = () => {
     // 1. Check for silent projects (4+ days silent)
@@ -197,37 +233,38 @@ export default function Dashboard() {
         </h1>
       </div>
 
-      {/* Watchdog Callout Banner */}
-      {watchdogAlerts.length > 0 && (
-        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-5 shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-2 text-yellow-500">
-              <AlertOctagon className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-base font-bold text-yellow-400">
-                Watchdog Alert: Inactivity Detected!
-              </h3>
-              <p className="mt-1 text-sm text-neutral-300">
-                You haven&apos;t updated some active projects in over 48 hours. The Watchdog Agent is not happy.
-              </p>
-              <div className="mt-3 space-y-2">
-                {watchdogAlerts.map((alert) => (
-                  <Link
-                    key={alert.id}
-                    href={`/projects/${alert.id}`}
-                    className="flex items-center justify-between rounded-lg bg-neutral-900/60 hover:bg-neutral-900 border border-white/5 px-4 py-2.5 text-sm text-white transition-all group"
-                  >
-                    <span className="font-semibold">{alert.title}</span>
-                    <span className="flex items-center gap-1.5 text-xs text-violet-400 font-medium group-hover:underline">
-                      See accountability nudges
-                      <ArrowRight className="h-3 w-3" />
-                    </span>
-                  </Link>
-                ))}
+      {/* Watchdog Dismissible Alert Card at Top */}
+      {activeProjects.some(p => p.watchdogStatus === "warned" && !p.latestWatchdogMessageRead) && (
+        <div className="space-y-3">
+          {activeProjects
+            .filter(p => p.watchdogStatus === "warned" && !p.latestWatchdogMessageRead && p.latestWatchdogMessage)
+            .map(p => (
+              <div 
+                key={p.id} 
+                className="rounded-xl border border-red-500/30 bg-red-500/5 p-5 shadow-lg border-l-4 border-l-red-500 flex items-start justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-red-500 shrink-0">
+                    <AlertOctagon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-red-400">
+                      Watchdog Warning: <span className="font-extrabold text-white">{p.title}</span> is silent!
+                    </h3>
+                    <p className="mt-1 text-sm text-neutral-300 italic">
+                      &ldquo;{p.latestWatchdogMessage}&rdquo;
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDismissWatchdog(p.latestWatchdogMessageId, p.id)}
+                  className="rounded-lg bg-neutral-900 border border-white/5 px-3 py-1.5 text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all shrink-0 cursor-pointer"
+                >
+                  Dismiss
+                </button>
               </div>
-            </div>
-          </div>
+            ))
+          }
         </div>
       )}
 
@@ -335,23 +372,6 @@ export default function Dashboard() {
                 {activeProjects.length}
               </span>
             </h2>
-            <button
-              onClick={handleRunWatchdogScan}
-              disabled={scanningWatchdog}
-              className="text-xs text-neutral-500 hover:text-neutral-300 transition-all flex items-center gap-1.5 bg-neutral-900/40 border border-white/5 px-2.5 py-1.5 rounded-lg hover:bg-neutral-800 disabled:opacity-50 cursor-pointer"
-            >
-              {scanningWatchdog ? (
-                <>
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-neutral-500 border-t-transparent"></div>
-                  <span>Scanning...</span>
-                </>
-              ) : (
-                <>
-                  <AlertOctagon className="h-3.5 w-3.5 text-yellow-500" />
-                  <span>Scan Health</span>
-                </>
-              )}
-            </button>
           </div>
 
           {activeProjects.length === 0 ? (
@@ -432,19 +452,6 @@ export default function Dashboard() {
                           {p.description}
                         </p>
                       </Link>
-
-                      {/* Watchdog Warning Banner */}
-                      {p.watchdogStatus === "warned" && (
-                        <div className="mt-2.5 rounded-lg border border-yellow-500/25 bg-yellow-500/5 p-2.5 text-xs text-yellow-400 flex items-start gap-1.5">
-                          <AlertOctagon className="h-4 w-4 shrink-0 text-yellow-400 mt-0.5" />
-                          <div className="flex-1">
-                            <span className="font-bold">Watchdog Alert:</span>{" "}
-                            <span className="italic text-neutral-300">
-                              &ldquo;{p.latestWatchdogMessage || "Aapka is project par progress ruk gaya hai!"}&rdquo;
-                            </span>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                     <div className="mt-4 space-y-3">
@@ -454,13 +461,20 @@ export default function Dashboard() {
                           <span>Progress</span>
                           <span>{p.progress}%</span>
                         </div>
-                        <div className="h-1.5 w-full rounded-full bg-neutral-900 overflow-hidden border border-white/5">
+                        <div className="h-1.5 w-full rounded-full bg-neutral-950 overflow-hidden border border-white/5">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 transition-all duration-500"
                             style={{ width: `${p.progress}%` }}
                           />
                         </div>
                       </div>
+
+                      {/* Watchdog warning message displayed inline below progress bar */}
+                      {p.watchdogStatus === "warned" && p.latestWatchdogMessage && (
+                        <p className="text-[11px] text-orange-400 font-medium italic mt-2 leading-relaxed">
+                          &ldquo;{p.latestWatchdogMessage}&rdquo;
+                        </p>
+                      )}
 
                       {/* Bottom Info & Action */}
                       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
@@ -475,17 +489,92 @@ export default function Dashboard() {
                             {daysSinceCheckin}
                           </span>
                         </div>
-                        <Link
-                          href={`/projects/${p.id}`}
-                          className="rounded-lg bg-neutral-900 border border-white/5 px-2.5 py-1 text-xs font-semibold text-neutral-300 transition-all hover:bg-neutral-800 hover:text-white"
-                        >
-                          &rarr; Open
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setStuckProjectId(stuckProjectId === p.id ? null : p.id);
+                              setStuckReason("");
+                            }}
+                            className="rounded-lg bg-red-600 hover:bg-red-500 border border-red-500/20 px-2.5 py-1.5 text-xs font-bold text-white transition-all cursor-pointer"
+                          >
+                            I&apos;m Stuck
+                          </button>
+                          <Link
+                            href={`/projects/${p.id}`}
+                            className="rounded-lg bg-neutral-900 border border-white/5 px-2.5 py-1.5 text-xs font-semibold text-neutral-300 transition-all hover:bg-neutral-800 hover:text-white"
+                          >
+                            &rarr; Open
+                          </Link>
+                        </div>
                       </div>
+
+                      {/* Stuck Blocker Input Box */}
+                      {stuckProjectId === p.id && (
+                        <div className="mt-3 p-3 bg-red-950/20 border border-red-500/20 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">What is blocking you, Boss?</p>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={stuckReason}
+                              onChange={(e) => setStuckReason(e.target.value)}
+                              placeholder="Describe roadblock (e.g. config errors or feeling lazy)..."
+                              className="flex-1 rounded bg-neutral-950 border border-white/5 px-2.5 py-1 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-red-500"
+                            />
+                            <button
+                              onClick={() => handleStuckSubmit(p.id)}
+                              disabled={submittingStuck || !stuckReason.trim()}
+                              className="rounded bg-red-600 hover:bg-red-500 px-3 py-1 text-xs font-bold text-white transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              {submittingStuck ? "..." : "Help Me"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Blocker Agent Inline Response */}
+                      {blockerResponses[p.id] && (
+                        <div className="mt-3 p-4 bg-red-950/20 border border-red-500/30 rounded-xl space-y-2 relative animate-in fade-in duration-300">
+                          <button 
+                            onClick={() => setBlockerResponses(prev => {
+                              const next = { ...prev };
+                              delete next[p.id];
+                              return next;
+                            })}
+                            className="absolute top-2.5 right-2.5 text-neutral-400 hover:text-white text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
+                            <span>🤖 Blocker Agent suggestion:</span>
+                          </div>
+                          <p className="text-xs text-neutral-200 leading-relaxed font-medium">
+                            {blockerResponses[p.id].response}
+                          </p>
+                          <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs">
+                            <span className="font-extrabold text-red-300">Smallest Next Step (&lt; 10 min):</span>{" "}
+                            <span className="text-white italic">{blockerResponses[p.id].microAction}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Coach Agent Card (Bottom Left of Left Column) */}
+          {coachFeedback && (
+            <div className="rounded-xl border border-white/5 bg-neutral-950/85 p-4 shadow-lg flex items-start gap-3 max-w-md mt-6">
+              <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 p-2 text-violet-400 shrink-0">
+                <Cpu className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-violet-400 uppercase tracking-wider">Coach Agent</h4>
+                <p className="mt-1 text-xs text-neutral-300 leading-relaxed line-clamp-3">
+                  {coachFeedback}
+                </p>
+              </div>
             </div>
           )}
         </div>
