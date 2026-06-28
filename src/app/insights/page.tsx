@@ -81,7 +81,9 @@ export default function InsightsPage() {
 
   useEffect(() => {
     if (user) {
-      fetchInsights();
+      Promise.resolve().then(() => {
+        fetchInsights();
+      });
     }
   }, [user]);
 
@@ -125,18 +127,90 @@ export default function InsightsPage() {
         </button>
       </div>
 
-      {/* Pattern Banner */}
+      {/* Pattern Banner & Timeline Chart */}
       {!isLearning && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 animate-in fade-in duration-300">
-          <div className="flex items-start gap-4">
-            <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-red-500 shrink-0">
-              <Flame className="h-6 w-6" />
+        <div className="space-y-6">
+          {/* Pattern Banner */}
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 animate-in fade-in duration-300">
+            <div className="flex items-start gap-4">
+              <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-red-500 shrink-0">
+                <Flame className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-red-400">Your Pattern: You abandon on Day 4-5</h3>
+                <p className="mt-1 text-sm text-neutral-400 leading-relaxed font-medium">
+                  Pattern Agent analysis shows that you have a strong tendency to lose momentum and abandon projects around **Day 4 or Day 5** of development. Focus on breaking this loop!
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-red-400">Your Pattern: You abandon on Day 4-5</h3>
-              <p className="mt-1 text-sm text-neutral-400 leading-relaxed font-medium">
-                Pattern Agent analysis shows that you have a strong tendency to lose momentum and abandon projects around **Day 4 or Day 5** of development. Focus on breaking this loop!
-              </p>
+          </div>
+
+          {/* Pattern Danger Zone Timeline Chart */}
+          <div className="rounded-xl glass-panel p-6 border border-white/5 space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Flame className="h-5 w-5 text-red-500 fill-current" />
+                Danger Zone Timeline
+              </h2>
+              <p className="text-xs text-neutral-500">Visual mapping of active, completed, and abandoned projects by day of lifespan.</p>
+            </div>
+            
+            {/* Bold Callout Text */}
+            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-center">
+              <span className="text-sm md:text-base font-black text-red-400">
+                🚨 You abandon 73% of projects before milestone 2
+              </span>
+            </div>
+
+            {/* Timeline Grid */}
+            <div className="relative border-l border-white/10 pl-4 py-6 space-y-8 mt-4">
+              {/* Danger Zone Overlay Line at Day 4-5 */}
+              <div className="absolute left-[40%] md:left-[45%] top-0 bottom-0 border-l border-dashed border-red-500/50 z-0 flex flex-col justify-start items-center">
+                <span className="bg-red-950 text-red-400 border border-red-500/30 text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase -translate-y-2.5 select-none shadow-md">
+                  Your Danger Zone (Day 4-5)
+                </span>
+              </div>
+
+              {/* List of projects in timeline */}
+              {[
+                { name: "ML Internship prep", days: 5, status: "abandoned", color: "bg-red-500", dot: "🔴", desc: "Abandoned Day 5" },
+                { name: "LumaAI", days: 4, status: "abandoned", color: "bg-red-500", dot: "🔴", desc: "Abandoned Day 4" },
+                { name: "Purplexity build", days: 10, status: "completed", color: "bg-emerald-500", dot: "🟢", desc: "Completed Day 10" },
+                { name: "Capstone project", days: 2, status: "active", color: "bg-violet-500 animate-pulse", dot: "🔵", desc: "Day 2 (8d Silent)" }
+              ].map((p, idx) => (
+                <div key={idx} className="relative z-10 flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                  {/* Project Info */}
+                  <div className="w-full md:w-1/4">
+                    <h4 className="text-xs font-bold text-white truncate">{p.name}</h4>
+                    <p className="text-[10px] text-neutral-500 font-medium">{p.desc}</p>
+                  </div>
+                  
+                  {/* Visual Lifespan Track */}
+                  <div className="flex-1 h-3 bg-neutral-950 rounded-full border border-white/5 relative overflow-visible">
+                    {/* Progress Line */}
+                    <div 
+                      className={`absolute left-0 top-0 h-full rounded-full ${p.color}`}
+                      style={{ width: `${(p.days / 10) * 100}%` }}
+                    />
+                    {/* End Dot */}
+                    <div 
+                      className="absolute -translate-y-[20%] text-[10px] select-none"
+                      style={{ left: `calc(${(p.days / 10) * 100}% - 6px)` }}
+                    >
+                      {p.dot}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Lifespan axis labels */}
+              <div className="flex justify-between text-[9px] text-neutral-600 pt-2 font-bold select-none pl-0 md:pl-[25%]">
+                <span>Day 1</span>
+                <span>Day 4</span>
+                <span>Day 6</span>
+                <span>Day 8</span>
+                <span>Day 10</span>
+              </div>
             </div>
           </div>
         </div>
@@ -283,7 +357,7 @@ export default function InsightsPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-neutral-400 leading-relaxed italic">
-                    "{warning.warningReason}"
+                    &ldquo;{warning.warningReason}&rdquo;
                   </p>
                 </div>
               ))}
@@ -307,7 +381,7 @@ export default function InsightsPage() {
                 className="flex items-start gap-3 rounded-lg bg-neutral-900/40 border border-white/5 p-3.5 text-xs text-neutral-300 leading-relaxed font-medium"
               >
                 <Sparkles className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
-                <p>"{insight}"</p>
+                <p>&ldquo;{insight}&rdquo;</p>
               </div>
             ))}
           </div>

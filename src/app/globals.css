@@ -79,3 +79,37 @@ body {
 .checkbox-animate:active {
   animation: check 0.2s ease-in-out;
 }
+
+/* Typewriter animations for onboarding hook */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink {
+  50% { border-color: transparent; }
+}
+
+.typewriter-text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid;
+  width: 0;
+}
+
+.animate-typewriter-1 {
+  animation: 
+    typewriter 1.2s steps(25, end) forwards;
+}
+
+.animate-typewriter-2 {
+  animation: 
+    typewriter 1.2s steps(18, end) forwards;
+}
+
+.animate-typewriter-3 {
+  animation: 
+    typewriter 1.5s steps(22, end) forwards;
+  border-color: #8b5cf6;
+}

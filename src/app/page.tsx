@@ -27,6 +27,7 @@ interface Project {
   progress: number;
   lastCheckIn: string | null;
   deadline: string | null;
+  createdAt: string;
   watchdogStatus: "ok" | "warned";
   milestonesCount: number;
   completedMilestonesCount: number;
@@ -58,17 +59,86 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [coachFeedback, setCoachFeedback] = useState("");
 
+  // Onboarding hook states
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
   // Blocker agent inline state
   const [stuckProjectId, setStuckProjectId] = useState<string | null>(null);
   const [stuckReason, setStuckReason] = useState("");
   const [submittingStuck, setSubmittingStuck] = useState(false);
   const [blockerResponses, setBlockerResponses] = useState<Record<string, { microAction: string; response: string }>>({});
 
+  const handleCompleteOnboarding = useCallback(() => {
+    localStorage.setItem("seen_onboarding", "true");
+    setShowOnboarding(false);
+  }, []);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const seen = localStorage.getItem("seen_onboarding");
+      if (!seen && user) {
+        Promise.resolve().then(() => {
+          setShowOnboarding(true);
+        });
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!showOnboarding) return;
+
+    const timer1 = setTimeout(() => setOnboardingStep(1), 1000);
+    const timer2 = setTimeout(() => setOnboardingStep(2), 2600);
+    const timer3 = setTimeout(() => setOnboardingStep(3), 4200);
+    const timer4 = setTimeout(() => {
+      setOnboardingStep(4);
+      setTimeout(() => {
+        handleCompleteOnboarding();
+      }, 1000);
+    }, 6500);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+    };
+  }, [showOnboarding, handleCompleteOnboarding]);
+
+  const getAbandonmentRisk = (p: Project) => {
+    let daysSilent = 0;
+    if (p.lastCheckIn) {
+      const checkinDate = new Date(p.lastCheckIn);
+      const diff = Math.abs(new Date().getTime() - checkinDate.getTime());
+      daysSilent = Math.floor(diff / (1000 * 60 * 60 * 24));
+    } else {
+      const createdDate = new Date(p.createdAt);
+      const diff = Math.abs(new Date().getTime() - createdDate.getTime());
+      daysSilent = Math.floor(diff / (1000 * 60 * 60 * 24));
+    }
+
+    let daysUntilDeadline = 999;
+    if (p.deadline) {
+      const deadlineDate = new Date(p.deadline);
+      const diff = deadlineDate.getTime() - new Date().getTime();
+      daysUntilDeadline = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    }
+
+    if (daysSilent >= 4 || (p.deadline && daysUntilDeadline < 0 && p.progress < 100)) {
+      return { label: "High", color: "text-red-400 border-red-500/20 bg-red-500/5", emoji: "🔴" };
+    } else if (daysSilent >= 2 || (p.progress < 50 && daysUntilDeadline <= 7)) {
+      return { label: "Medium", color: "text-yellow-400 border-yellow-500/20 bg-yellow-500/5", emoji: "🟡" };
+    } else {
+      return { label: "Low", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5", emoji: "🟢" };
+    }
+  };
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -194,6 +264,45 @@ export default function Dashboard() {
 
     return "No projects running. Pick a goal and get started!";
   };
+
+  if (showOnboarding) {
+    return (
+      <div className={`fixed inset-0 z-50 bg-[#000000] flex flex-col items-center justify-center transition-opacity duration-1000 ${
+        onboardingStep === 4 ? "opacity-0 pointer-events-none" : "opacity-100"
+      }`}>
+        <div className="max-w-lg px-6 text-center space-y-8 font-mono select-none">
+          {onboardingStep >= 1 && (
+            <div className="h-8">
+              <p className="text-xl md:text-2xl font-light text-white typewriter-text animate-typewriter-1">
+                You&apos;ve started 11 projects.
+              </p>
+            </div>
+          )}
+          {onboardingStep >= 2 && (
+            <div className="h-8">
+              <p className="text-xl md:text-2xl font-light text-white typewriter-text animate-typewriter-2">
+                You&apos;ve finished 2.
+              </p>
+            </div>
+          )}
+          {onboardingStep >= 3 && (
+            <div className="h-10">
+              <p className="text-2xl md:text-3xl font-black text-violet-500 typewriter-text animate-typewriter-3">
+                FinishLine changes that.
+              </p>
+            </div>
+          )}
+        </div>
+        
+        <button
+          onClick={handleCompleteOnboarding}
+          className="absolute bottom-6 right-6 text-xs text-neutral-500 hover:text-white transition-all bg-neutral-900/50 border border-white/5 rounded px-3.5 py-1.5 font-sans cursor-pointer"
+        >
+          Skip &rarr;
+        </button>
+      </div>
+    );
+  }
 
   if (authLoading || loading) {
     return (
@@ -375,18 +484,29 @@ export default function Dashboard() {
           </div>
 
           {activeProjects.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-neutral-800 p-12 text-center">
-              <Target className="mx-auto h-12 w-12 text-neutral-600 mb-4" />
-              <h3 className="text-lg font-bold text-white">No active projects</h3>
-              <p className="text-sm text-neutral-500 mt-1">
-                Arey yaar, a free mind is a playground for abandonment. Add a project!
-              </p>
-              <Link
-                href="/projects/new"
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-white/5 px-4 py-2 text-sm font-semibold text-white transition-all"
-              >
-                Create Project
-              </Link>
+            <div className="rounded-2xl border border-white/5 bg-neutral-900/40 p-12 text-center max-w-xl mx-auto space-y-6">
+              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500">
+                <Target className="h-8 w-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  11 shuru. 2 khatam.
+                </h3>
+                <p className="text-lg font-bold text-violet-400">
+                  Aaj kaunsa finish karte hain?
+                </p>
+                <p className="text-xs text-neutral-500 font-medium max-w-sm mx-auto">
+                  Abandonment loop ko todne ka time aa gaya hai. Let&apos;s build habits that stick.
+                </p>
+              </div>
+              <div className="pt-2">
+                <Link
+                  href="/projects/new"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all"
+                >
+                  Add Your First Project &rarr;
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -430,17 +550,28 @@ export default function Dashboard() {
                         <span className="rounded-md bg-neutral-900 border border-white/5 px-2 py-0.5 text-[10px] font-semibold text-neutral-400">
                           {p.category}
                         </span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            p.priority === "high"
-                              ? "bg-red-500/10 border border-red-500/20 text-red-400"
-                              : p.priority === "medium"
-                              ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-400"
-                              : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
-                          }`}
-                        >
-                          {p.priority}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {/* Abandonment Risk Badge */}
+                          {(() => {
+                            const risk = getAbandonmentRisk(p);
+                            return (
+                              <span className={`rounded px-1.5 py-0.5 text-[9px] font-extrabold border ${risk.color}`}>
+                                Risk: {risk.label} {risk.emoji}
+                              </span>
+                            );
+                          })()}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              p.priority === "high"
+                                ? "bg-red-500/10 border border-red-500/20 text-red-400"
+                                : p.priority === "medium"
+                                ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-400"
+                                : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
+                            }`}
+                          >
+                            {p.priority}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Title & Desc */}
