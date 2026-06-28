@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #040406;
-  --foreground: #f4f4f5;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
   
-  --card-bg: rgba(10, 10, 12, 0.7);
-  --card-border: rgba(255, 255, 255, 0.08);
+  --card-bg: #111111;
+  --card-border: #222222;
   --accent: #8b5cf6; /* Violet */
   --accent-hover: #7c3aed;
-  --accent-glow: rgba(139, 92, 246, 0.15);
+  --accent-glow: rgba(139, 92, 246, 0.1);
   
   --success: #10b981;
   --warning: #f59e0b;
@@ -112,4 +112,53 @@ body {
   animation: 
     typewriter 1.5s steps(22, end) forwards;
   border-color: #8b5cf6;
+}
+
+/* Micro-Animations */
+@keyframes progress-fill {
+  from { width: 0; }
+}
+
+.animate-progress-fill {
+  animation: progress-fill 600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fade-in-up 500ms ease-out forwards;
+}
+
+@keyframes stuck-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
+.animate-stuck-pulse {
+  animation: stuck-pulse 2s infinite ease-in-out;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

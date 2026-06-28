@@ -36,25 +36,9 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Top Bar */}
-      <div className="flex items-center justify-between border-b border-neutral-900 bg-neutral-950 px-4 py-3 md:hidden">
-        <Link href="/" className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-violet-500" />
-          <span className="font-bold tracking-tight text-white">FinishLine</span>
-        </Link>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="text-neutral-400 hover:text-white"
-        >
-          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
-      </div>
-
-      {/* Sidebar container */}
+      {/* Desktop Sidebar container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-neutral-900 bg-neutral-950/80 backdrop-blur-md transition-transform duration-300 md:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className="fixed inset-y-0 left-0 z-40 hidden md:flex w-64 flex-col border-r border-neutral-900 bg-neutral-950/80 backdrop-blur-md"
       >
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b border-neutral-900 px-6">
@@ -102,7 +86,6 @@ export default function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-3 py-2.5 pl-3 pr-4 text-sm font-medium transition-all border-l-2 ${
                   isActive
                     ? "border-violet-500 text-violet-400 bg-violet-500/5"
@@ -119,11 +102,8 @@ export default function Sidebar() {
         {/* Log Out */}
         <div className="border-t border-neutral-900 p-4">
           <button
-            onClick={() => {
-              logout();
-              setIsOpen(false);
-            }}
-            className="flex w-full items-center gap-3 rounded-lg border border-transparent px-4 py-2.5 text-sm font-medium text-neutral-400 transition-all hover:bg-red-500/10 hover:text-red-400"
+            onClick={() => logout()}
+            className="flex w-full items-center gap-3 rounded-lg border border-transparent px-4 py-2.5 text-sm font-medium text-neutral-400 transition-all hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             Sign Out
@@ -131,13 +111,32 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Overlay for mobile sidebar */}
-      {isOpen && (
-        <div
-          onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
-        />
-      )}
+      {/* Sleek Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-neutral-950/90 backdrop-blur-lg border-t border-neutral-900/60 flex justify-around py-3 md:hidden">
+        {navigation.map((item) => {
+          const isActive = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex flex-col items-center gap-1 text-[10px] font-semibold transition-all ${
+                isActive ? "text-violet-400" : "text-neutral-500 hover:text-neutral-300"
+              }`}
+            >
+              <Icon className="h-5.5 w-5.5" />
+              <span>{item.name}</span>
+            </Link>
+          );
+        })}
+        <button
+          onClick={() => logout()}
+          className="flex flex-col items-center gap-1 text-[10px] font-semibold text-neutral-500 hover:text-red-400 transition-all cursor-pointer"
+        >
+          <LogOut className="h-5.5 w-5.5" />
+          <span>Logout</span>
+        </button>
+      </nav>
     </>
   );
 }

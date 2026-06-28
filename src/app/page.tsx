@@ -197,10 +197,15 @@ export default function Dashboard() {
     if (!stuckReason.trim()) return;
     try {
       setSubmittingStuck(true);
+      const startTime = Date.now();
       const res = await apiRequest(`/api/projects/${projectId}/stuck`, {
         method: "POST",
         body: JSON.stringify({ reason: stuckReason })
       });
+      const duration = Date.now() - startTime;
+      if (duration < 1000) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 - duration));
+      }
       if (res && res.microAction) {
         setBlockerResponses(prev => ({
           ...prev,
@@ -350,7 +355,7 @@ export default function Dashboard() {
             .map(p => (
               <div 
                 key={p.id} 
-                className="rounded-xl border border-red-500/30 bg-red-500/5 p-5 shadow-lg border-l-4 border-l-red-500 flex items-start justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300"
+                className="rounded-xl border border-red-500/30 bg-red-500/5 p-5 shadow-lg border-l-4 border-l-red-500 flex items-start justify-between gap-4 animate-slide-down"
               >
                 <div className="flex items-start gap-4">
                   <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-red-500 shrink-0">
@@ -360,14 +365,14 @@ export default function Dashboard() {
                     <h3 className="text-sm font-bold text-red-400">
                       Watchdog Warning: <span className="font-extrabold text-white">{p.title}</span> is silent!
                     </h3>
-                    <p className="mt-1 text-sm text-neutral-300 italic">
+                    <p className="mt-1 text-sm text-white/70 italic">
                       &ldquo;{p.latestWatchdogMessage}&rdquo;
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleDismissWatchdog(p.latestWatchdogMessageId, p.id)}
-                  className="rounded-lg bg-neutral-900 border border-white/5 px-3 py-1.5 text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all shrink-0 cursor-pointer"
+                  className="rounded-lg bg-neutral-900 border border-white/5 px-3 py-1.5 text-xs font-semibold text-white/40 hover:text-white hover:bg-neutral-800 transition-all shrink-0 cursor-pointer"
                 >
                   Dismiss
                 </button>
@@ -378,17 +383,20 @@ export default function Dashboard() {
       )}
 
       {/* Stats Row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-center">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 items-center">
         {/* Streak: Orange Accent, Flame Icon, Slightly Larger */}
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 shadow-lg shadow-orange-500/5 p-6 flex items-center justify-between transition-all scale-105 hover:scale-108 duration-300">
+        <div 
+          className="rounded-xl border border-orange-500/30 bg-orange-500/5 shadow-lg shadow-orange-500/5 p-6 flex items-center justify-between transition-all hover:scale-105 duration-300 animate-fade-in-up"
+          style={{ animationDelay: '0ms' }}
+        >
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-orange-400">
               Current Streak
             </p>
-            <h3 className="text-4xl font-black text-white mt-1">
+            <h3 className="text-4xl font-black text-white mt-1 tabular-nums">
               {stats.currentStreak} Days
             </h3>
-            <p className="text-[11px] text-neutral-400 mt-1">
+            <p className="text-[11px] text-white/50 mt-1">
               Best record: {stats.maxStreak} days
             </p>
           </div>
@@ -401,17 +409,20 @@ export default function Dashboard() {
         {(() => {
           const isHigh = stats.finishRate >= 50;
           return (
-            <div className={`rounded-xl glass-panel p-5 flex items-center justify-between transition-all border ${
-              isHigh ? "border-emerald-500/20 bg-emerald-500/5" : "border-rose-500/20 bg-rose-500/5"
-            }`}>
+            <div 
+              className={`rounded-xl glass-panel p-5 flex items-center justify-between transition-all border animate-fade-in-up ${
+                isHigh ? "border-emerald-500/20 bg-emerald-500/5" : "border-rose-500/20 bg-rose-500/5"
+              }`}
+              style={{ animationDelay: '50ms' }}
+            >
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
                   Finish Rate
                 </p>
-                <h3 className={`text-3xl font-extrabold mt-1 ${isHigh ? "text-emerald-400" : "text-rose-400"}`}>
+                <h3 className={`text-3xl font-extrabold mt-1 tabular-nums ${isHigh ? "text-emerald-400" : "text-rose-400"}`}>
                   {stats.finishRate}%
                 </h3>
-                <p className="text-[11px] text-neutral-400 mt-1">
+                <p className="text-[11px] text-white/40 mt-1">
                   Completed vs Abandoned
                 </p>
               </div>
@@ -428,17 +439,20 @@ export default function Dashboard() {
         {(() => {
           const isWarning = activeProjects.length > 3;
           return (
-            <div className={`rounded-xl glass-panel p-5 flex items-center justify-between transition-all border ${
-              isWarning ? "border-yellow-500/30 bg-yellow-500/5" : "border-white/5"
-            }`}>
+            <div 
+              className={`rounded-xl glass-panel p-5 flex items-center justify-between transition-all border animate-fade-in-up ${
+                isWarning ? "border-yellow-500/30 bg-yellow-500/5" : "border-white/5"
+              }`}
+              style={{ animationDelay: '100ms' }}
+            >
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
                   Active Projects
                 </p>
-                <h3 className={`text-3xl font-extrabold mt-1 ${isWarning ? "text-yellow-400" : "text-white"}`}>
+                <h3 className={`text-3xl font-extrabold mt-1 tabular-nums ${isWarning ? "text-yellow-400" : "text-white"}`}>
                   {activeProjects.length}
                 </h3>
-                <p className="text-[11px] text-neutral-400 mt-1">
+                <p className="text-[11px] text-white/40 mt-1">
                   {isWarning ? "Overload! Focus on finishing." : "In-progress projects"}
                 </p>
               </div>
@@ -452,19 +466,22 @@ export default function Dashboard() {
         })()}
 
         {/* Project History: Muted, Smallest, Archive Data */}
-        <div className="rounded-xl glass-panel p-4 flex items-center justify-between opacity-60 scale-95 origin-center transition-all border border-white/5">
+        <div 
+          className="rounded-xl glass-panel p-4 flex items-center justify-between opacity-50 scale-95 origin-center transition-all border border-white/5 animate-fade-in-up"
+          style={{ animationDelay: '150ms' }}
+        >
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
               Project History
             </p>
-            <h3 className="text-xl font-bold text-neutral-300 mt-0.5">
-              {stats.totalCompleted} <span className="text-[10px] font-normal text-neutral-500">Done</span> / {stats.totalAbandoned} <span className="text-[10px] font-normal text-neutral-500">Drop</span>
+            <h3 className="text-xl font-extrabold text-white/70 mt-0.5 tabular-nums">
+              {stats.totalCompleted} <span className="text-[10px] font-normal text-white/40">Done</span> / {stats.totalAbandoned} <span className="text-[10px] font-normal text-white/40">Drop</span>
             </h3>
-            <p className="text-[10px] text-neutral-500 mt-0.5">
+            <p className="text-[10px] text-white/40 mt-0.5">
               Archive data
             </p>
           </div>
-          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-2 text-neutral-500">
+          <div className="rounded-xl bg-neutral-900 border border-neutral-800 p-2 text-white/40">
             <CheckCircle2 className="h-4 w-4" />
           </div>
         </div>
@@ -509,7 +526,7 @@ export default function Dashboard() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               {activeProjects.map((p) => {
                 // Calculate days since last check-in
                 let daysSinceCheckin = "No updates yet";
@@ -588,13 +605,13 @@ export default function Dashboard() {
                     <div className="mt-4 space-y-3">
                       {/* Progress bar with violet-to-emerald gradient */}
                       <div>
-                        <div className="flex items-center justify-between text-xs font-semibold text-neutral-400 mb-1">
+                        <div className="flex items-center justify-between text-xs font-semibold text-white/50 mb-1">
                           <span>Progress</span>
-                          <span>{p.progress}%</span>
+                          <span className="tabular-nums font-bold text-white/70">{p.progress}%</span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-neutral-950 overflow-hidden border border-white/5">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 transition-all duration-500"
+                            className="h-full rounded-full bg-gradient-to-r from-violet-600 to-emerald-500 transition-all duration-500 animate-progress-fill"
                             style={{ width: `${p.progress}%` }}
                           />
                         </div>
@@ -602,37 +619,41 @@ export default function Dashboard() {
 
                       {/* Watchdog warning message displayed inline below progress bar */}
                       {p.watchdogStatus === "warned" && p.latestWatchdogMessage && (
-                        <p className="text-[11px] text-orange-400 font-medium italic mt-2 leading-relaxed">
-                          &ldquo;{p.latestWatchdogMessage}&rdquo;
-                        </p>
+                        <div className="border-l-2 border-orange-500 pl-2 bg-orange-500/5 py-1.5 rounded">
+                          <p className="text-[11px] text-orange-400 font-medium italic leading-relaxed">
+                            &ldquo;{p.latestWatchdogMessage}&rdquo;
+                          </p>
+                        </div>
                       )}
 
                       {/* Bottom Info & Action */}
-                      <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/5 pt-3 mt-1">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+                          <span className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">
                             Last Update
                           </span>
                           <span className={`text-xs flex items-center gap-1 ${
-                            isSilent ? "text-red-500 font-extrabold" : "font-bold text-neutral-300"
+                            isSilent ? "text-red-500 font-extrabold" : "font-bold text-white/70"
                           }`}>
-                            <Clock className={`h-3 w-3 shrink-0 ${isSilent ? "text-red-500" : "text-neutral-400"}`} />
+                            <Clock className={`h-3 w-3 shrink-0 ${isSilent ? "text-red-500" : "text-white/40"}`} />
                             {daysSinceCheckin}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
                           <button
                             onClick={() => {
                               setStuckProjectId(stuckProjectId === p.id ? null : p.id);
                               setStuckReason("");
                             }}
-                            className="rounded-lg bg-red-600 hover:bg-red-500 border border-red-500/20 px-2.5 py-1.5 text-xs font-bold text-white transition-all cursor-pointer"
+                            className={`flex-1 sm:flex-none rounded-lg bg-red-600 hover:bg-red-500 border border-red-500/20 px-2.5 py-1.5 text-xs font-bold text-white transition-all cursor-pointer ${
+                              isSilent ? "animate-stuck-pulse" : ""
+                            }`}
                           >
                             I&apos;m Stuck
                           </button>
                           <Link
                             href={`/projects/${p.id}`}
-                            className="rounded-lg bg-neutral-900 border border-white/5 px-2.5 py-1.5 text-xs font-semibold text-neutral-300 transition-all hover:bg-neutral-800 hover:text-white"
+                            className="flex-1 sm:flex-none text-center rounded-lg bg-neutral-900 border border-white/5 px-2.5 py-1.5 text-xs font-semibold text-white/70 transition-all hover:bg-neutral-800 hover:text-white"
                           >
                             &rarr; Open
                           </Link>
@@ -656,7 +677,7 @@ export default function Dashboard() {
                               disabled={submittingStuck || !stuckReason.trim()}
                               className="rounded bg-red-600 hover:bg-red-500 px-3 py-1 text-xs font-bold text-white transition-all disabled:opacity-50 cursor-pointer"
                             >
-                              {submittingStuck ? "..." : "Help Me"}
+                              {submittingStuck ? "Thinking..." : "Help Me"}
                             </button>
                           </div>
                         </div>
@@ -671,16 +692,18 @@ export default function Dashboard() {
                               delete next[p.id];
                               return next;
                             })}
-                            className="absolute top-2.5 right-2.5 text-neutral-400 hover:text-white text-xs cursor-pointer"
+                            className="absolute top-2.5 right-2.5 text-white/40 hover:text-white text-xs cursor-pointer"
                           >
                             ✕
                           </button>
                           <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
                             <span>🤖 Blocker Agent suggestion:</span>
                           </div>
-                          <p className="text-xs text-neutral-200 leading-relaxed font-medium">
-                            {blockerResponses[p.id].response}
-                          </p>
+                          <div className="border-l-2 border-red-500 pl-2 bg-red-500/5 py-1 rounded">
+                            <p className="text-xs text-white/70 leading-relaxed font-medium italic">
+                              &ldquo;{blockerResponses[p.id].response}&rdquo;
+                            </p>
+                          </div>
                           <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs">
                             <span className="font-extrabold text-red-300">Smallest Next Step (&lt; 10 min):</span>{" "}
                             <span className="text-white italic">{blockerResponses[p.id].microAction}</span>

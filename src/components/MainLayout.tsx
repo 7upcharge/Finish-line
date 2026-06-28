@@ -34,7 +34,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <Sidebar />
       
       {/* Scrollable container for main page */}
-      <main className="flex-1 flex flex-col min-h-screen md:pl-64 bg-[#040406]">
+      <main className="flex-1 flex flex-col min-h-screen md:pl-64 bg-[#0a0a0a] pb-16 md:pb-0">
         <div className="flex-1 p-6 md:p-10 max-w-7xl w-full mx-auto">
           {children}
         </div>

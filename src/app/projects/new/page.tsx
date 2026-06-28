@@ -108,11 +108,19 @@ export default function AddProject() {
       {loading ? (
         /* Loading Animation Screen */
         <div className="rounded-xl glass-panel-glow p-10 flex flex-col items-center justify-center min-h-[350px] text-center">
-          <div className="relative mb-6">
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-violet-500/20 border-t-violet-500"></div>
-            <Target className="absolute inset-0 m-auto h-6 w-6 text-violet-400 animate-pulse" />
+          <div className="mb-6 flex flex-col items-center justify-center space-y-4">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-400">
+              <Target className="h-8 w-8 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              Agent is analyzing your project
+              <span className="flex gap-1 items-center justify-center mt-1.5 shrink-0">
+                <span className="h-1.5 w-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="h-1.5 w-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="h-1.5 w-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              </span>
+            </h3>
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Analyzing Project</h3>
           <div className="h-6 overflow-hidden max-w-sm w-full">
             <p className="text-sm text-violet-400 font-semibold transition-all duration-300">
               {loadingMessages[loadingStep]}

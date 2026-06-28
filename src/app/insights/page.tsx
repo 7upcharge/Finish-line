@@ -239,45 +239,45 @@ export default function InsightsPage() {
       )}
 
       {/* Overview Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
         {/* Finish Rate */}
         <div className="rounded-xl glass-panel p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-1">
             <TrendingUp className="h-3.5 w-3.5" />
             Finish Rate
           </p>
-          <h3 className="text-3xl font-extrabold text-white mt-1">
+          <h3 className="text-3xl font-extrabold tracking-tight text-white mt-1 tabular-nums">
             {streaks.finishRate}%
           </h3>
-          <p className="text-[11px] text-neutral-400 mt-1">
+          <p className="text-[11px] text-white/40 mt-1">
             Ratio of started vs completed projects.
           </p>
         </div>
 
         {/* Avg Abandonment Day */}
         <div className="rounded-xl glass-panel p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
             Avg Abandonment Day
           </p>
-          <h3 className="text-3xl font-extrabold text-white mt-1">
+          <h3 className="text-3xl font-extrabold tracking-tight text-white mt-1 tabular-nums">
             {insights.averageAbandonmentDay > 0 ? `Day ${insights.averageAbandonmentDay}` : "N/A"}
           </h3>
-          <p className="text-[11px] text-neutral-400 mt-1">
+          <p className="text-[11px] text-white/40 mt-1">
             When you typically lose focus on active projects.
           </p>
         </div>
 
         {/* Streak */}
-        <div className="rounded-xl glass-panel p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+        <div className="rounded-xl glass-panel p-5 col-span-2 sm:col-span-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/40 flex items-center gap-1">
             <Flame className="h-3.5 w-3.5" />
             Current Streak
           </p>
-          <h3 className="text-3xl font-extrabold text-white mt-1">
+          <h3 className="text-3xl font-extrabold tracking-tight text-white mt-1 tabular-nums">
             {streaks.currentStreak} Days
           </h3>
-          <p className="text-[11px] text-neutral-400 mt-1">
+          <p className="text-[11px] text-white/40 mt-1">
             Max active streak record: {streaks.maxStreak} days.
           </p>
         </div>
